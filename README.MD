@@ -14,6 +14,7 @@ The project is based on the existing esp8266-fastled-mqtt" project ( https://git
 There are mainly two types of node:
 * Light strip
 * Timer
+
 Both are sharing the same code, depending on the #define, some part are added for the Timer, or excluded.
 The definitions of nodes are inside libraries/esp8266-fastled-mqtt/Settings. The defined nodes are :
 - LEDSTRIP_MATRICE (The timer)
@@ -31,6 +32,7 @@ The ledstrip are listening inside their own mqtt topic.
 - "2/ledstrip/labroom/south"
 - "2/ledstrip/serverroom"
 - "2/ledstrip/doorserverroom"
+
 All are giving a feedback if `DEBUG` is #define under the topic "2/feedback".
 The timer is also listening two other topics:
 * "1/gameOptions" with QoS 1 (which ensure the reception)
