@@ -1,3 +1,273 @@
+extern int magicNumber;
+
+#define CHAR_WIDTH 4
+// ZERO
+/*  ## 
+ * #  #
+ * #  #
+ * #  #
+ * #  #
+ * #  #
+ *  ##
+ *     
+*/
+// const pZero* = [ 0b01111100, 0b10000010, 0b10000010, 0b01111100, 0x00 ];
+char pZero[CHAR_WIDTH] = { 0x7C, 0x82, 0x82, 0x7C };
+
+// ONE
+/*   #  
+ *  ## 
+ *   # 
+ *   # 
+ *   # 
+ *   # 
+ * ####
+ *    
+*/
+// const pOne* = [ 0b01000010, 0b11111110, 0b00000010, 0x00 ];
+char pOne[CHAR_WIDTH] = { 0x02, 0x42, 0xFE, 0x02 };
+
+// TWO
+/*  ##   
+ * #  # 
+ *    #
+ *   #
+ *  # 
+ * #
+ * ####
+ *    
+*/
+// const pTwo* = [ 0b01000110, 0b10001010, 0b10010010, 0b01100010, 0x00 ];
+char pTwo[CHAR_WIDTH] = { 0x46, 0x8A, 0x92, 0x72 };
+
+// THREE
+/* ###   
+ *    # 
+ *    #
+ *  ##
+ *    #
+ *    #
+ * ### 
+ *    
+*/
+// const pThree* = [ 0b10000010, 0b10010010, 0b10010010, 0b01101100, 0x00 ];
+char pThree[CHAR_WIDTH] = { 0x82, 0x92, 0x92, 0x6C };
+
+// FOUR
+/*   #   
+ * # #  
+ * # # 
+ * ####
+ *   # 
+ *   # 
+ *   # 
+ *    
+*/
+// const pFour* = [ 0b01110000, 0b00010000, 0b11111110, 0b00010000, 0x00 ];
+char pFour[CHAR_WIDTH] = { 0x70, 0x10, 0xFE, 0x10 };
+
+// FIVE
+/* ###
+ * # 
+ * #
+ *  ##
+ *    #
+ *    #
+ * ###
+ * 
+*/
+// const pFive* = [ 0b11100010, 0b10010010, 0b10010010, 0b00001100, 0x00 ];
+char pFive[CHAR_WIDTH] = { 0xE2, 0x92, 0x92, 0x0C };
+
+// SIX
+/*   #
+ *  # 
+ * #
+ * ###
+ * #  #
+ * #  #
+ *  ##
+ * 
+*/
+// const pSix* = [ 0b00111100, 0b01010010, 0b10010010, 0b00001100, 0x00 ];
+char pSix[CHAR_WIDTH] = { 0x3C, 0x52, 0x92, 0x0C };
+
+// SEVEN
+/* ####
+ *    #
+ *   #
+ *  #
+ *  #
+ * #
+ * #
+ * 
+*/
+// const pSeven* = [ 0b10000110, 0b10011000, 0b10100000, 0b11000000, 0x00 ];
+char pSeven[CHAR_WIDTH] = { 0x86, 0x98, 0xA0, 0xC0 };
+
+// Eight
+/*  ##
+ * #  #
+ * #  #
+ *  ##
+ * #  #
+ * #  #
+ *  ##
+ * 
+*/
+// const pEight* = [ 0b01101100, 0b10010010, 0b10010010, 0b01101100, 0x00 ];
+char pEight[CHAR_WIDTH] = { 0x6C, 0x92, 0x92, 0x6C };
+
+// NINE
+/*  ##
+ * #  #
+ * #  #
+ *  ###
+ *    #
+ *    #
+ *  ##
+ * 
+*/
+// const char* pNinet = [ 0b01100000, 0b10010010, 0b10010010, 0b01111100, 0x00 ];
+char pNine[CHAR_WIDTH] = { 0x60, 0x92, 0x92, 0x7C };
+
+// const char* pNumTable[] = { pZero, pOne, pTwo, pThree, pFour, pFive, pSix, pSeven, pEight, pNine };
+char* pNumTable[] = { pZero, pOne, pTwo, pThree, pFour, pFive, pSix, pSeven, pEight, pNine };
+
+void setChar(int offset, int position){
+    CRGB color;
+    char* toPrint=pNumTable[position];
+    char oneColumn=0;
+    if(0>position || position>9){
+        toPrint=pNumTable[0];
+    }
+    for ( int i = 0; i < 4; i++) {
+        oneColumn=*(char*)((int)toPrint+i);
+        if((i+offset)&0x01){ //LED are in S, the order look like 123 654 789, depending on the index, we switch the order.
+            for (int j=0, k=0; j<NUM_ROW; j++){
+                if((char)0x01&(oneColumn>>j))
+                    color=solidColor;
+                else
+                    color=backSolidColor;
+                leds[(i+offset)*NUM_ROW+k++]= color;
+            }
+        }else{
+            for (int j=NUM_ROW-1, k=0; j; j--){
+                if((char)0x01&(oneColumn>>j))
+                    color=solidColor;
+                else
+                    color=backSolidColor;
+                leds[(i+offset)*NUM_ROW+k++]= color;
+            }
+        }
+    }
+}
+
+void timerprint()
+{
+    static char permutt;
+    int offset;
+    int Sec, Min, uSec, dSec, uMin, dMin;
+    int localSec=globalSec;
+    Min=localSec/60;
+    Sec=localSec%60;
+    dMin=Min/10;
+    uMin=Min%10;
+    dSec=Sec/10;
+    uSec=Sec%10;
+    
+    permutt^=1;
+    
+    if(dMin>9 || uMin>9 || dSec>9 || uSec>9 || dMin<0 || uMin<0 || dSec<0 || uSec<0){
+        Serial.printf("dMin %u \t uMin %u \t dSec %u \t uSec %u ", dMin, uMin, dSec, uSec);
+        Serial.println(""); 
+        dMin=uMin=dSec=uSec=0;
+    }
+    
+    int index=0;
+    //Clean :
+    for ( int i = 0; i < NUM_COL; i++) {
+        for (int j=0; j<NUM_ROW; j++){
+            leds[i*NUM_ROW+j]= backSolidColor;
+        }
+    }
+
+    
+    //Set First digit : the tens of minute
+    offset=5;
+    setChar(offset, dMin);
+
+    //Set second digit : the unity of minute
+    offset=10;
+    setChar(offset, uMin);
+
+    //Minutes Seconds separator
+    offset=15;
+    if(permutt){ //Blink each seconds
+        leds[(offset)*NUM_ROW+2]= backSolidColor ;
+        leds[(offset)*NUM_ROW+6]= backSolidColor ;
+        leds[(offset)*NUM_ROW+3]= backSolidColor ;
+        leds[(offset)*NUM_ROW+5]= backSolidColor ;
+    }else{
+        leds[(offset)*NUM_ROW+2]= solidColor ;
+        leds[(offset)*NUM_ROW+6]= solidColor ;
+        leds[(offset)*NUM_ROW+3]= solidColor ;
+        leds[(offset)*NUM_ROW+5]= solidColor ;
+    }
+    offset=16;
+    if(permutt){ //Blink each seconds
+        leds[(offset)*NUM_ROW+1]= backSolidColor ;
+        leds[(offset)*NUM_ROW+5]= backSolidColor ;
+        leds[(offset)*NUM_ROW+2]= backSolidColor ;
+        leds[(offset)*NUM_ROW+4]= backSolidColor ;
+    }else{
+        leds[(offset)*NUM_ROW+1]= solidColor ;
+        leds[(offset)*NUM_ROW+5]= solidColor ;
+        leds[(offset)*NUM_ROW+2]= solidColor ;
+        leds[(offset)*NUM_ROW+4]= solidColor ;
+    }
+    
+    //Set third digit : The tens of seconds
+    offset=18;
+    setChar(offset, dSec);
+
+//     //Set fourth digit : The unity of seconds
+    offset=23;
+    setChar(offset, uSec);
+}
+
+void globes()
+{
+    for(int i=0; i<NUM_LEDS>>1; i++){
+        leds[i]=solidColorFlugplatz ;
+    }
+    for(int i=NUM_LEDS>>1; i<NUM_LEDS; i++){
+        leds[i]=solidColorMensa ;
+    }
+}
+
+//This pattern is either called as a pattern or aside the timer pattern.
+void stroboskop()
+{
+    CRGB permutSolidColor;
+#ifndef LEDSTRIP_MATRICE
+    //blink in two colors, fill always with only one of both colors.
+    static char permutt;
+    permutt^=1;
+    if(permutt){
+        //foreground
+        fill_solid(leds, NUM_LEDS, solidColor);
+    }else{
+        //background
+        fill_solid(leds, NUM_LEDS, backSolidColor);
+    }
+#endif
+#ifdef LEDSTRIP_MATRICE
+    permutSolidColor=solidColor;
+    solidColor=backSolidColor;
+    backSolidColor=permutSolidColor;
+#endif
+}
 
 void showSolidColor()
 {

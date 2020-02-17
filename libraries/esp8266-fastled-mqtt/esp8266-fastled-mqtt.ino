@@ -28,6 +28,8 @@ extern "C" {
 #include "user_interface.h"
 }
 
+int magicNumber;
+
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h> // Only use it with SSL on MQTT Broker
 #include <EEPROM.h>
@@ -77,7 +79,8 @@ CRGB solidColor = CRGB::Black;
 uint8_t power = 1;
 
 // Mqtt Vars
-WiFiClientSecure espClient;
+// WiFiClientSecure espClient;
+WiFiClient espClient;
 PubSubClient client(espClient);
 
 
@@ -111,24 +114,24 @@ const uint8_t patternCount = ARRAY_SIZE(patterns);
 
 
 void setup(void) {
-  Serial.begin(115200);
-  delay(100);
-  //Serial.setDebugOutput(true);
-  EEPROM.begin(512);
-  loadSettings();
-  initFastLED();
+    Serial.begin(115200);
+    delay(100);
+    //Serial.setDebugOutput(true);
+    EEPROM.begin(512);
+    loadSettings();
+    initFastLED();
 
-  logSys();
+    logSys();
 
-  initWlan();
+    initWlan();
 
-  // Only to validate certs if u have problems ...
-  // verifytls();
+    // Only to validate certs if u have problems ...
+    // verifytls();
 
-  //Mqtt Init
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
-  autoPlayTimeout = millis() + (autoPlayDurationSeconds * 1000);
+    //Mqtt Init
+    client.setServer(mqtt_server, mqtt_port);
+    client.setCallback(callback);
+    autoPlayTimeout = millis() + (autoPlayDurationSeconds * 1000);
 }
 
 // Format is: command:value
@@ -256,7 +259,12 @@ void loop(void) {
 
 
 void reconnectMqtt() {
-  while (!client.connected()) {
+  while (!client.connected()) { 
+    if(espClient.connect(mqtt_server, mqtt_port)){
+        Serial.println("Wifi client connected");
+    }else{
+        Serial.println("Wifi client NOT connected.");
+    }
     Serial.println("Attempting MQTT connection...");
     if (client.connect(mqtt_clientid, mqtt_user, mqtt_password)) {
       Serial.println("connected");
@@ -272,21 +280,18 @@ void reconnectMqtt() {
 }
 
 
-void setPower(uint8_t value)
-{
+void setPower(uint8_t value){
   power = value == 0 ? 0 : 1;
   EEPROM.write(5, power);
   EEPROM.commit();
   
 }
 
-void setSolidColor(CRGB color)
-{
+void setSolidColor(CRGB color){
   setSolidColor(color.r, color.g, color.b);
 }
 
-void setSolidColor(uint8_t r, uint8_t g, uint8_t b)
-{
+void setSolidColor(uint8_t r, uint8_t g, uint8_t b){
   solidColor = CRGB(r, g, b);
 
   EEPROM.write(2, r);
@@ -297,8 +302,7 @@ void setSolidColor(uint8_t r, uint8_t g, uint8_t b)
 }
 
 // increase or decrease the current pattern number, and wrap around at theends
-void adjustPattern(bool up)
-{
+void adjustPattern(bool up){
   if (up)
     currentPatternIndex++;
   else
@@ -314,8 +318,7 @@ void adjustPattern(bool up)
   EEPROM.commit();
 }
 
-void setPattern(int value)
-{
+void setPattern(int value){
   // don't wrap around at the ends
   if (value < 0)
     value = 0;
@@ -329,8 +332,7 @@ void setPattern(int value)
 }
 
 // adjust the brightness, and wrap around at the ends
-void adjustBrightness(bool up)
-{
+void adjustBrightness(bool up){
   if (up)
     brightnessIndex++;
   else
@@ -350,8 +352,7 @@ void adjustBrightness(bool up)
   EEPROM.commit();
 }
 
-void setBrightness(int value)
-{
+void setBrightness(int value){
   // don't wrap around at the ends
   if (value > 255)
     value = 255;
@@ -365,8 +366,7 @@ void setBrightness(int value)
   EEPROM.commit();
 }
 
-String getValue(String data, char separator, int index)
-{
+String getValue(String data, char separator, int index){
   int found = 0;
   int strIndex[] = { 0, -1 };
   int maxIndex = data.length() - 1;
