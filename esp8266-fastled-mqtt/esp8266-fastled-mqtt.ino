@@ -16,7 +16,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+/**
+ * Here is selected the node, it implies the mDNS name for OTA, topic subscription, allowed patterns
+ */
 // LEDSTRIP_MATRICE
 // LEDSTRIP_ROOM_NORTH
 // LEDSTRIP_ROOM_MIDDLE
@@ -38,9 +40,11 @@ extern "C" {
 #include "user_interface.h"
 }
 
-int magicNumber;
-volatile int globalSec;
-volatile int gameDuration;
+/**
+ * few variables to control
+ */
+volatile int globalSec; //was used to count down first, reused as communication varaible to give the time to print.
+volatile int gameDuration; //Where saved the maximum value from which we count down.
 char connectFlag = 1;
 
 #include <ESP8266WiFi.h>
@@ -59,8 +63,6 @@ char connectFlag = 1;
 #include "jsmn/jsmn.h"
 
 CRGB leds[NUM_LEDS];
-// CRGB(r, g, b);
-// uint8_t letterR, letterG, letterB;
 
 uint8_t patternIndex = 0;
 
@@ -99,6 +101,9 @@ unsigned int autoPlayTimeout = 0;
 
 uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
+/*
+ * This variables are used for background/foreground color of the timer and the blinking mode of the LEDstrips.
+ */
 CRGB solidColor = CRGB::White;
 CRGB solidColorSave = CRGB::White;
 CRGB backSolidColor = CRGB::Black;
@@ -106,13 +111,16 @@ CRGB backSolidColorSave = CRGB::Black;
 CRGB solidColorMensa = CRGB::Black;
 CRGB solidColorFlugplatz = CRGB::Black;
 
+/*
+ * This variables are used for control flow.
+ */
 uint8_t power = 1;
-uint8_t countdown =0;
+uint8_t countdown =0; //Obsolete, never read.
 uint8_t stroboskoping=0;
 
 // Mqtt Vars
 // WiFiClientSecure espClient;
-WiFiClient espClient;
+WiFiClient espClient; //switch to the unsecured connection.
 PubSubClient client(espClient);
 
 
@@ -147,6 +155,7 @@ const uint8_t patternCount = ARRAY_SIZE(patterns);
 
 #include "Inits.h"
 
+//Reused from WCS project, if the line #define DEBUG is commented, there is no feedback anymore.
 #define DEBUG
 //client.publish("2/feedback", "{ \"method\": \"MESSAGE\", \"data\": \""CLIENTID": msg processed.\" }" );
 #ifdef DEBUG
@@ -189,10 +198,11 @@ void setup(void) {
     client.setCallback(callback);
     autoPlayTimeout = millis() + (autoPlayDurationSeconds * 1000);
     
-    gameDuration=60*90;
+    gameDuration=60*90; //Set a default gameduration
     globalSec=gameDuration; //90minutes game play
     
     reconnectMqtt();
+    //For debug purpose, we send a message when started up.
     client.publish("2/feedback", "{ \"method\": \"message\", \"data\": \""CLIENTID": Hello world !\" }" );
 }
 
@@ -214,7 +224,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     tmp[length] = '\0';
     String data(tmp);
     
-    
+    //The time on MQTT is not encapsulated inside a JSON string. It should be checked first prior the Topic name.
     if ( data.length() > 0) {
         if(0 == strncmp(topic,"1/gameTime_in_sec",17) ){
             r =  getValue(tmp, '.', 0);
@@ -224,6 +234,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
                 globalSec=0;
         }else if(0 == strncmp(topic,"1/gameOptions",13) ){
             Serial.println("Got gameOptions");
+            //Example :
             //gameDuration
             //{"participants":2,"duration":90}
             jsmn_init(&parser);
@@ -248,7 +259,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
             
             r =  getValue(tmp, '0', 0);
             globalSec=(gameDuration)-r.toInt();
-        }else{
+        }else{ //All other case are in the topic $TOPIC_PATH like "2/ledstrip/timer"
             jsmn_init(&parser);
             itemTot = jsmn_parse(&parser, tmp, length, tokList, TOKEN_MAX);
             if(itemTot<0){
@@ -259,8 +270,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
             }
             else {
                 itemNo = 1;
-                //for (itemNo = 1; itemNo < itemTot; itemNo++) {
-                
                 if(jsoneq(tmp, &tokList[itemNo], "method")) {
                     //Got method
                     freeTok = &tokList[++itemNo];
@@ -339,9 +348,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
                                             solidColor = CRGB((char)r.toInt(), (char)g.toInt(), (char)b.toInt());
                                             backSolidColor = CRGB((char)r2.toInt(), (char)g2.toInt(), (char)b2.toInt());
                                             stroboskoping=1;
-#ifndef LEDSTRIP_MATRICE
-                                            setPattern(13);
-#endif
+                                            //The ledmatrice switch the foreground/background color, but remains in the same pattern "printtimer".
+                                            if(CLIENTID!="timer"){
+                                                setPattern(13);
+                                            }
                                         }else{
                                             debug("At least one value is negativ.");
                                         }
@@ -363,7 +373,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
                                         Serial.printf("Received R: %s G: %s B: %s", r.c_str(), g.c_str(), b.c_str());
                                         Serial.println();
                                         if (r.length() > 0 && g.length() > 0 && b.length() > 0) {
-                                            setSolidColor(r.toInt(), g.toInt(), b.toInt()); //setSolidColor change the patern informations.
+                                            setSolidColor(r.toInt(), g.toInt(), b.toInt()); //setSolidColor change the patern pointer, so the pattern should be reset for the timer to "printtimer".
                                             solidColorSave=solidColor;
                                             if(CLIENTID=="timer"){
                                                 setPattern(11);
@@ -457,6 +467,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
                                 }else{
                                     debug("data expected...");
                                 }
+                            //From here, the next commands are obsolet.
                             }else if(jsoneq(tmp, freeTok, "settimer")){
                                 delayTime = 1000/FRAMES_PER_SECOND;
                                 debug("Set timer");
@@ -498,6 +509,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     Serial.println("Finished Topic Data ...");
 #ifndef LEDSTRIP_MATRICE
+    //As the time is sent each seconds, this message, mostly for debug purpose, is not sent, otherwise it would be like a flood.
     client.publish("2/feedback", "{ \"method\": \"message\", \"data\": \""CLIENTID": msg processed.\" }" );
 #endif
 }
@@ -520,9 +532,6 @@ void loop(void) {
         client.loop();
     }
     
-//     setBrightness(10);
-//     setPattern(11);
-
     if (power == 0) {
         fill_solid(leds, NUM_LEDS, CRGB::Black);
         FastLED.show();
@@ -530,17 +539,13 @@ void loop(void) {
         return;
     }
 
-    
+    //Was used before reading directly from the game_in_sec topic.
 //     EVERY_N_SECONDS( 1 ) {
 //         if(globalSec){
 //             globalSec--;
 //         }
 //     }
     
-    // EVERY_N_SECONDS(10) {
-    //   Serial.print( F("Heap: ") ); Serial.println(system_get_free_heap_size());
-    // }
-
     EVERY_N_MILLISECONDS( 20 ) {
         gHue++;  // slowly cycle the "base color" through the rainbow
     }
@@ -561,6 +566,7 @@ void loop(void) {
         autoPlayTimeout = millis() + (autoPlayDurationSeconds * 1000);
     }
 
+    //In order to restore the previous color before blinking
     if(!stroboskoping){
             solidColor=    solidColorSave;
         backSolidColor=backSolidColorSave;
@@ -694,7 +700,7 @@ void adjustPattern(bool up){
   if (currentPatternIndex >= patternCount)
     currentPatternIndex = 0;
   
-    if((currentPatternIndex!=11)||(CLIENTID=="timer")){ //Save the setted state to eeprom uniquely if timer.
+    if((currentPatternIndex!=11)||(CLIENTID=="timer")){ //Save the set state to eeprom uniquely if timer.
         EEPROM.write(1, currentPatternIndex);
         EEPROM.commit();
     }
@@ -707,6 +713,7 @@ void setPattern(int value){
     else if (value >= patternCount)
         value = patternCount - 1;
 
+    //protect the nodes to try to print the time without being set, but allow the timer to switch to this pattern.
     if((value!=11)||(CLIENTID=="timer")){
         currentPatternIndex = value;
 
